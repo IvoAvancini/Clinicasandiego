@@ -397,6 +397,26 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       const EVOLUTION_KEY = import.meta.env.VITE_EVOLUTION_API_KEY || '6944500e32d8c3a0b3fc5e9ef8ed7057648e00f30c05a8c4dc065c7a3387b271';
       const INSTANCE_NAME = 'Clinica Sandiego';
 
+      // Fetch contacts map from Evolution API
+      let contactsMap: Record<string, string> = {};
+      try {
+        const contactsRes = await fetch(`${EVOLUTION_URL}/chat/findContacts/${encodeURIComponent(INSTANCE_NAME)}`, {
+          method: 'POST',
+          headers: { apikey: EVOLUTION_KEY },
+        });
+        if (contactsRes.ok) {
+          const contactsData = await contactsRes.json();
+          if (Array.isArray(contactsData)) {
+            contactsData.forEach((ct: any) => {
+              if (ct.remoteJid) {
+                const name = ct.pushName || ct.name || ct.verifiedName || ct.profileName;
+                if (name && name.trim()) contactsMap[ct.remoteJid] = name.trim();
+              }
+            });
+          }
+        }
+      } catch { /* Ignore contact fetch error */ }
+
       const res = await fetch(`${EVOLUTION_URL}/chat/findChats/${encodeURIComponent(INSTANCE_NAME)}`, {
         method: 'POST',
         headers: { apikey: EVOLUTION_KEY },
@@ -414,18 +434,31 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           const jid = c.remoteJid || c.id;
           const phoneClean = jid.replace(/\D/g, '');
           const formattedPhone = phoneClean ? `+${phoneClean}` : '';
-          const pushName = c.pushName || c.name || (phoneClean ? `+${phoneClean}` : `Contato #${index + 1}`);
+          const pushName = contactsMap[jid] || c.pushName || c.name || (phoneClean ? `+${phoneClean}` : `Contato #${index + 1}`);
 
           const lastMsgObj = c.lastMessage;
           let msgText = 'Conversa iniciada';
           let fromMe = false;
           let timestampStr = 'Hoje';
+          let audioUrl: string | undefined = undefined;
+          let imageUrl: string | undefined = undefined;
+          let mediaType: 'audio' | 'image' | 'text' = 'text';
 
           if (lastMsgObj) {
             fromMe = Boolean(lastMsgObj.key?.fromMe);
             const msgBody = lastMsgObj.message;
             if (msgBody) {
-              msgText = msgBody.conversation || msgBody.extendedTextMessage?.text || msgBody.imageMessage?.caption || (msgBody.imageMessage ? '📷 Imagem' : msgBody.audioMessage ? '🎤 Áudio' : 'Mensagem');
+              if (msgBody.audioMessage) {
+                mediaType = 'audio';
+                audioUrl = msgBody.audioMessage.url || msgBody.audioMessage.mediaUrl || msgBody.audioMessage.directPath || msgBody.base64;
+                msgText = '🎤 Mensagem de voz';
+              } else if (msgBody.imageMessage) {
+                mediaType = 'image';
+                imageUrl = msgBody.imageMessage.url || msgBody.imageMessage.mediaUrl || msgBody.imageMessage.directPath || msgBody.base64;
+                msgText = msgBody.imageMessage.caption || '📷 Foto / Imagem';
+              } else {
+                msgText = msgBody.conversation || msgBody.extendedTextMessage?.text || 'Mensagem';
+              }
             }
             if (lastMsgObj.messageTimestamp) {
               const tsSec = typeof lastMsgObj.messageTimestamp === 'number' ? lastMsgObj.messageTimestamp : lastMsgObj.messageTimestamp.low || Date.now() / 1000;
@@ -446,6 +479,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
               senderName: fromMe ? 'Recepção' : pushName,
               text: msgText,
               timestamp: timestampStr,
+              audioUrl,
+              imageUrl,
+              mediaType,
             }
           ];
 
@@ -474,6 +510,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
                 senderName: fromMe ? 'Recepção' : pushName,
                 text: msgText,
                 timestamp: timestampStr,
+                audioUrl,
+                imageUrl,
+                mediaType,
               }
             ],
           };

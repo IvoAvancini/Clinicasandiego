@@ -40,6 +40,9 @@ export interface Message {
   senderName?: string;
   text: string;
   timestamp: string;
+  audioUrl?: string;
+  imageUrl?: string;
+  mediaType?: 'audio' | 'image' | 'text';
   meta?: {
     intentDetected?: 'confirmation_yes' | 'confirmation_no' | 'cancellation' | 'faq' | 'unrecognized';
     statusChangedTo?: AppointmentStatus;

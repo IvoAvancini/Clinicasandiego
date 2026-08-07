@@ -181,7 +181,22 @@ export function ChatArea() {
                   </div>
                 )}
 
-                {msg.text}
+                {msg.imageUrl && (
+                  <div className="mb-2 rounded-lg overflow-hidden border border-slate-200">
+                    <img src={msg.imageUrl} alt="Imagem / Foto" className="max-h-64 object-cover w-full rounded-lg" />
+                  </div>
+                )}
+
+                {msg.audioUrl ? (
+                  <div className="my-1.5">
+                    <audio controls className="h-8 max-w-[220px]">
+                      <source src={msg.audioUrl} />
+                      Seu navegador não suporta áudio.
+                    </audio>
+                  </div>
+                ) : (
+                  msg.text
+                )}
 
                 <div className={`flex items-center justify-end gap-1 mt-1 text-[9px] font-bold ${isOutgoing ? 'text-emerald-800/70' : 'text-slate-400'}`}>
                   <span>{msg.timestamp}</span>
