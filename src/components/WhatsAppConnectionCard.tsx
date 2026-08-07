@@ -5,6 +5,9 @@ import { toast } from 'sonner';
 export type WhatsAppConnStatus = 'connected' | 'connecting' | 'disconnected' | 'error' | 'loading';
 
 const API_BASE = import.meta.env.VITE_EVOLUTION_API_URL || import.meta.env.VITE_API_URL || 'http://localhost:8001';
+const EVOLUTION_URL = import.meta.env.VITE_EVOLUTION_API_URL || 'https://evolution-api-production-22b7.up.railway.app';
+const EVOLUTION_KEY = import.meta.env.VITE_EVOLUTION_API_KEY || '6944500e32d8c3a0b3fc5e9ef8ed7057648e00f30c05a8c4dc065c7a3387b271';
+const INSTANCE_NAME = 'Clinica Sandiego';
 
 export function WhatsAppConnectionCard() {
   const [status, setStatus] = useState<WhatsAppConnStatus>('loading');
@@ -26,18 +29,30 @@ export function WhatsAppConnectionCard() {
 
   const fetchStatus = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE}/api/whatsapp/status`);
-      if (!res.ok) throw new Error('Status failed');
-      const data = await res.json();
-      setStatus(data.status);
-      if (data.connected_number) {
-        setConnectedNumber(data.connected_number);
+      const res = await fetch(`${API_BASE}/api/whatsapp/status`, { signal: AbortSignal.timeout(3000) });
+      if (res.ok) {
+        const data = await res.json();
+        setStatus(data.status);
+        if (data.connected_number) setConnectedNumber(data.connected_number);
+        return data.status as WhatsAppConnStatus;
       }
-      return data.status as WhatsAppConnStatus;
-    } catch {
-      setStatus('error');
-      return 'error' as WhatsAppConnStatus;
-    }
+    } catch { /* Fallback to direct Evolution API */ }
+
+    try {
+      const res = await fetch(`${EVOLUTION_URL}/instance/connectionState/${encodeURIComponent(INSTANCE_NAME)}`, {
+        headers: { apikey: EVOLUTION_KEY },
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const state = data.instance?.state || data.state;
+        const mappedStatus: WhatsAppConnStatus = state === 'open' ? 'connected' : state === 'connecting' ? 'connecting' : 'disconnected';
+        setStatus(mappedStatus);
+        return mappedStatus;
+      }
+    } catch { /* Network error */ }
+
+    setStatus('disconnected');
+    return 'disconnected' as WhatsAppConnStatus;
   }, []);
 
   useEffect(() => {
@@ -66,17 +81,47 @@ export function WhatsAppConnectionCard() {
   const handleConnect = async () => {
     setLoadingConnect(true);
     try {
-      const res = await fetch(`${API_BASE}/api/whatsapp/connect`, { method: 'POST' });
+      // 1. Try proxy
+      try {
+        const res = await fetch(`${API_BASE}/api/whatsapp/connect`, { method: 'POST', signal: AbortSignal.timeout(3000) });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.status === 'connected') {
+            setStatus('connected');
+            if (data.number) setConnectedNumber(data.number);
+            toast.success('WhatsApp já está conectado!');
+            return;
+          } else {
+            setStatus('connecting');
+            setQrCode(data.qrCode || null);
+            setShowModal(true);
+            return;
+          }
+        }
+      } catch { /* Fallback to direct Evolution API */ }
+
+      // 2. Direct Evolution API Connect / QR Code
+      const res = await fetch(`${EVOLUTION_URL}/instance/connect/${encodeURIComponent(INSTANCE_NAME)}`, {
+        headers: { apikey: EVOLUTION_KEY },
+      });
+
       if (!res.ok) throw new Error('Connect failed');
       const data = await res.json();
-      if (data.status === 'connected') {
+
+      if (data.instance?.state === 'open' || data.state === 'open') {
         setStatus('connected');
-        if (data.number) setConnectedNumber(data.number);
         toast.success('WhatsApp já está conectado!');
       } else {
-        setStatus('connecting');
-        setQrCode(data.qrCode || null);
-        setShowModal(true);
+        const base64 = data.base64 || data.qrcode?.base64 || data.code;
+        if (base64) {
+          const formattedQr = base64.startsWith('data:') ? base64 : `data:image/png;base64,${base64}`;
+          setQrCode(formattedQr);
+          setStatus('connecting');
+          setShowModal(true);
+        } else {
+          toast.error('Não foi possível obter o QR Code da Evolution API');
+          setStatus('error');
+        }
       }
     } catch (err: any) {
       toast.error('Não foi possível comunicar com a Evolution API');
@@ -89,16 +134,17 @@ export function WhatsAppConnectionCard() {
   const handleRefreshQr = async () => {
     setLoadingQr(true);
     try {
-      const res = await fetch(`${API_BASE}/api/whatsapp/qrcode`);
+      const res = await fetch(`${EVOLUTION_URL}/instance/connect/${encodeURIComponent(INSTANCE_NAME)}`, {
+        headers: { apikey: EVOLUTION_KEY },
+      });
       const data = await res.json();
-      if (data.status === 'connected') {
-        setStatus('connected');
-        setShowModal(false);
-        setQrCode(null);
-        toast.success('WhatsApp conectado com sucesso!');
-      } else {
-        setQrCode(data.qrCode || null);
+      const base64 = data.base64 || data.qrcode?.base64 || data.code;
+      if (base64) {
+        const formattedQr = base64.startsWith('data:') ? base64 : `data:image/png;base64,${base64}`;
+        setQrCode(formattedQr);
         toast.info('Novo QR Code gerado.');
+      } else {
+        toast.error('Erro ao gerar novo QR Code.');
       }
     } catch {
       toast.error('Erro ao gerar novo QR Code.');
@@ -110,7 +156,10 @@ export function WhatsAppConnectionCard() {
   const handleDisconnect = async () => {
     setDisconnecting(true);
     try {
-      await fetch(`${API_BASE}/api/whatsapp/disconnect`, { method: 'POST' });
+      await fetch(`${EVOLUTION_URL}/instance/logout/${encodeURIComponent(INSTANCE_NAME)}`, {
+        method: 'DELETE',
+        headers: { apikey: EVOLUTION_KEY },
+      });
       setStatus('disconnected');
       setConnectedNumber(null);
       setQrCode(null);
