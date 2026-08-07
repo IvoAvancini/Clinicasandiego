@@ -2,6 +2,7 @@ import React from 'react';
 import { useChatStore } from '../store/useChatStore';
 import { InboxFilterTab, PatientConversation } from '../types/chatwoot';
 import { Search, CheckCircle2, RefreshCw, Inbox } from 'lucide-react';
+import { WhatsAppConnectionCard } from './WhatsAppConnectionCard';
 
 export function SidebarConversations() {
   const {
@@ -88,6 +89,11 @@ export function SidebarConversations() {
 
   return (
     <aside className="w-full lg:w-[350px] bg-white border-r border-slate-200 flex flex-col shrink-0 select-none h-full">
+      {/* WhatsApp Connection Card Bar */}
+      <div className="p-2 border-b border-slate-200 bg-slate-50">
+        <WhatsAppConnectionCard />
+      </div>
+
       {/* Search Header */}
       <div className="p-3 border-b border-slate-200 space-y-2.5 bg-slate-50/50">
         <div className="relative">

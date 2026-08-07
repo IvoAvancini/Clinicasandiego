@@ -124,10 +124,10 @@ export function ChatArea() {
         </div>
       </div>
 
-      {/* Messenger-style chat */}
-      <div className="flex-1 overflow-y-auto p-4 sm:p-5 space-y-1.5 bg-white">
-        <div className="flex justify-center my-3">
-          <span className="bg-slate-100 text-slate-500 text-[10px] font-bold px-3 py-1 rounded-full">
+      {/* WhatsApp Web style chat background */}
+      <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-2 bg-[#efeae2] bg-opacity-70">
+        <div className="flex justify-center my-2">
+          <span className="bg-white/80 backdrop-blur-xs text-slate-600 text-[10px] font-bold px-3 py-1 rounded-full shadow-2xs border border-slate-200/60">
             Hoje
           </span>
         </div>
@@ -160,19 +160,34 @@ export function ChatArea() {
                 <span className="text-[10px] font-bold text-slate-500 px-1">{activeConv.patientName}</span>
               )}
 
-              {/* Bubble */}
+              {/* WhatsApp Web Style Bubble */}
               <div
-                className={`max-w-[75%] sm:max-w-[65%] px-4 py-2.5 text-[13px] leading-relaxed whitespace-pre-wrap ${
+                className={`max-w-[75%] sm:max-w-[65%] px-4 py-2.5 text-xs leading-relaxed whitespace-pre-wrap shadow-2xs transition-all ${
                   isOutgoing
-                    ? 'bg-[#0084ff] text-white rounded-[20px] rounded-tr-[4px]'
-                    : 'bg-[#f0f0f0] text-slate-900 rounded-[20px] rounded-tl-[4px]'
+                    ? isBot
+                      ? 'bg-[#e2f7e0] text-slate-900 rounded-2xl rounded-tr-xs border border-emerald-200/80'
+                      : 'bg-[#d9fdd3] text-slate-900 rounded-2xl rounded-tr-xs border border-emerald-200/80'
+                    : 'bg-white text-slate-900 rounded-2xl rounded-tl-xs border border-slate-200/80'
                 }`}
               >
-                {msg.text}
-              </div>
+                {isOutgoing && isBot && (
+                  <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-700 mb-1">
+                    <span>🤖 IA</span>
+                  </div>
+                )}
+                {isOutgoing && isAgent && (
+                  <div className="flex items-center gap-1 text-[10px] font-bold text-emerald-800 mb-1">
+                    <span>👤 Recepção</span>
+                  </div>
+                )}
 
-              {/* Timestamp below */}
-              <span className="text-[10px] text-slate-400 px-1">{msg.timestamp}</span>
+                {msg.text}
+
+                <div className={`flex items-center justify-end gap-1 mt-1 text-[9px] font-bold ${isOutgoing ? 'text-emerald-800/70' : 'text-slate-400'}`}>
+                  <span>{msg.timestamp}</span>
+                  {isOutgoing && <span className="text-emerald-600 font-extrabold">✓✓</span>}
+                </div>
+              </div>
             </div>
           );
         })}
@@ -186,25 +201,22 @@ export function ChatArea() {
         </div>
       )}
 
-
-
-      {/* Input Bar */}
-      <form onSubmit={handleSend} className="bg-white border-t border-slate-200 p-3 sm:p-4 shrink-0">
-        <div className="flex items-center gap-2">
+      {/* Input Bar - WhatsApp style */}
+      <form onSubmit={handleSend} className="bg-white border-t border-slate-200 p-3 sm:p-4 shrink-0 shadow-md">
+        <div className="flex items-center gap-3">
           <input
             type="text"
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
-            placeholder="Digite uma mensagem ou use / para respostas..."
-            className="flex-1 px-4 py-2.5 border border-slate-200 bg-slate-50 rounded-2xl text-xs text-slate-900 placeholder-slate-400 outline-none focus:border-amber-500 transition font-medium"
+            placeholder="Digite uma mensagem... (Enter envia, Shift+Enter quebra linha)"
+            className="flex-1 px-5 py-3 border border-slate-200 bg-slate-50 rounded-full text-xs text-slate-900 placeholder-slate-400 outline-none focus:border-purple-500 focus:bg-white transition font-medium"
           />
 
           <button
             type="submit"
-            className="h-10 px-4 sm:px-5 rounded-2xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs shadow-md transition flex items-center gap-1.5 cursor-pointer shrink-0"
+            className="w-10 h-10 rounded-full bg-purple-600 hover:bg-purple-700 text-white font-black shadow-md transition flex items-center justify-center shrink-0 cursor-pointer active:scale-95"
           >
-            <Send className="h-4 w-4" />
-            <span>Enviar</span>
+            <Send className="h-4 w-4 ml-0.5" />
           </button>
         </div>
       </form>
