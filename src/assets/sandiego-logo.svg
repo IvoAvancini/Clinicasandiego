@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 500 500" width="100%" height="100%" fill="none" shape-rendering="geometricPrecision" text-rendering="geometricPrecision">
+  <defs>
+    <!-- Soft Champagne Gold Gradient (As seen in the official image) -->
+    <linearGradient id="sandiegoGold" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F5E8BA"/>
+      <stop offset="35%" stop-color="#E5C782"/>
+      <stop offset="70%" stop-color="#D6B46C"/>
+      <stop offset="100%" stop-color="#BE974E"/>
+    </linearGradient>
+
+    <!-- Soft Metallic Silver Gradient (Central Figure & Top Arc) -->
+    <linearGradient id="sandiegoSilver" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F8FAFC"/>
+      <stop offset="50%" stop-color="#CBD5E1"/>
+      <stop offset="100%" stop-color="#94A3B8"/>
+    </linearGradient>
+
+    <!-- Soft Ambient Glow Shadow -->
+    <filter id="softGlow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#806200" flood-opacity="0.1"/>
+    </filter>
+  </defs>
+
+  <!-- Background Circle (White / Crisp Light Background) -->
+  <circle cx="250" cy="250" r="238" fill="#FFFFFF"/>
+
+  <!-- 1. Outer Golden Crescent / Protective Hand (Thick Golden C-Arc on Left wrapping under) -->
+  <path d="M 160,85 
+           C 110,130 95,220 125,295 
+           C 160,380 260,405 340,365 
+           C 385,342 410,305 405,280 
+           C 390,320 345,355 285,358 
+           C 200,362 145,310 138,235 
+           C 133,180 148,125 185,95 
+           C 175,90 166,87 160,85 Z" 
+        fill="url(#sandiegoGold)"
+        filter="url(#softGlow)"/>
+
+  <!-- 2. Caring Palm Hand at the Bottom Supporting the Figures -->
+  <path d="M 175,300 
+           C 210,360 300,368 375,310 
+           C 400,290 412,260 405,235 
+           C 395,270 365,305 315,315 
+           C 250,328 190,290 175,300 Z" 
+        fill="#BE974E"/>
+
+  <!-- 3. Upper Metallic Silver Arc Swoosh (Top-Right Circle Accent) -->
+  <path d="M 210,65 C 310,75 400,135 390,250" 
+        stroke="url(#sandiegoSilver)" 
+        stroke-width="8" 
+        stroke-linecap="round"/>
+
+  <!-- 4. CENTRAL FIGURE - Standing Tall in Center, Arms V-Upward (Silver/Gray) -->
+  <!-- Head -->
+  <circle cx="250" cy="140" r="23" fill="url(#sandiegoSilver)" stroke="url(#sandiegoGold)" stroke-width="2.5"/>
+  
+  <!-- Body & Raising Arms -->
+  <path d="M 208,255 
+           C 208,185 236,170 250,170 
+           C 264,170 292,185 292,255 
+           C 278,205 222,205 208,255 Z" 
+        fill="url(#sandiegoSilver)" 
+        stroke="url(#sandiegoGold)" 
+        stroke-width="3" 
+        stroke-linecap="round" 
+        stroke-linejoin="round"/>
+
+  <!-- 5. LEFT FIGURE - Family Member (Champagne Gold) -->
+  <circle cx="198" cy="195" r="19" fill="url(#sandiegoGold)"/>
+  <path d="M 170,275 C 170,230 218,230 218,275 Z" fill="url(#sandiegoGold)"/>
+
+  <!-- 6. RIGHT FIGURE - Family Member (Champagne Gold) -->
+  <circle cx="302" cy="195" r="19" fill="url(#sandiegoGold)"/>
+  <path d="M 282,275 C 282,230 330,230 330,275 Z" fill="url(#sandiegoGold)"/>
+</svg>
