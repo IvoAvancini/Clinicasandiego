@@ -1,6 +1,6 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useChatStore } from '../store/useChatStore';
-import { User, Calendar, FileText, X, Copy, ExternalLink, MessageCircle } from 'lucide-react';
+import { User, Calendar, FileText, X, Copy, ExternalLink, MessageCircle, Pencil, Check } from 'lucide-react';
 import { toast } from 'sonner';
 
 export function PatientDetailsSidebar() {
@@ -8,11 +8,23 @@ export function PatientDetailsSidebar() {
     conversations,
     activeConversationId,
     updateNotes,
+    updatePatientName,
     isPatientDrawerOpen,
     setIsPatientDrawerOpen,
   } = useChatStore();
 
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [nameInput, setNameInput] = useState('');
+
   const activeConv = conversations.find((c) => c.id === activeConversationId);
+
+  const handleSaveName = () => {
+    if (activeConv && nameInput.trim()) {
+      updatePatientName(activeConv.id, nameInput.trim());
+      toast.success('Nome do contato atualizado com sucesso!');
+    }
+    setIsEditingName(false);
+  };
 
   // Keyboard shortcut listener to close drawer on ESC key
   useEffect(() => {
@@ -63,9 +75,40 @@ export function PatientDetailsSidebar() {
           Paciente
         </h4>
         <div className="space-y-2 text-slate-700">
-          <div className="flex justify-between items-center">
-            <span className="text-slate-500">Nome:</span>
-            <strong className="text-slate-900 font-black">{activeConv.patientName}</strong>
+          <div className="flex justify-between items-center gap-2">
+            <span className="text-slate-500 shrink-0">Nome:</span>
+            {isEditingName ? (
+              <div className="flex items-center gap-1">
+                <input
+                  type="text"
+                  value={nameInput}
+                  onChange={(e) => setNameInput(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleSaveName(); }}
+                  autoFocus
+                  className="text-xs font-bold text-slate-900 px-2 py-0.5 border border-purple-400 rounded-md outline-none bg-purple-50/60 w-32"
+                />
+                <button
+                  type="button"
+                  onClick={handleSaveName}
+                  className="p-1 rounded-md bg-emerald-600 text-white hover:bg-emerald-700 transition cursor-pointer"
+                  title="Salvar nome"
+                >
+                  <Check className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 truncate">
+                <strong className="text-slate-900 font-black truncate">{activeConv.patientName}</strong>
+                <button
+                  type="button"
+                  onClick={() => { setNameInput(activeConv.patientName); setIsEditingName(true); }}
+                  className="p-1 rounded hover:bg-slate-200 text-slate-400 hover:text-purple-600 transition cursor-pointer shrink-0"
+                  title="Editar nome"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
           </div>
           <div className="flex justify-between items-center">
             <span className="text-slate-500">WhatsApp:</span>

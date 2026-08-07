@@ -71,6 +71,7 @@ interface ChatStore {
   simulatePatientReply: (text: string) => void;
   updateStatus: (conversationId: string, status: ConfirmationStatus) => void;
   updateNotes: (conversationId: string, notes: string) => void;
+  updatePatientName: (conversationId: string, newName: string) => void;
   triggerBatchConfirmations: () => void;
   syncEvolutionChats: () => Promise<void>;
 }
@@ -391,11 +392,35 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     set({ conversations: updated });
   },
 
+  updatePatientName: (conversationId, newName) => {
+    if (!newName.trim()) return;
+    const cleanName = newName.trim();
+    try {
+      const savedCustom = localStorage.getItem('sandiego_custom_contact_names');
+      const customNames = savedCustom ? JSON.parse(savedCustom) : {};
+      customNames[conversationId] = cleanName;
+      localStorage.setItem('sandiego_custom_contact_names', JSON.stringify(customNames));
+    } catch { /* Storage error */ }
+
+    const updated = get().conversations.map((c) =>
+      c.id === conversationId ? { ...c, patientName: cleanName } : c
+    );
+    localStorage.setItem('sandiego_chatwoot_conversations_v9', JSON.stringify(updated));
+    set({ conversations: updated });
+  },
+
   syncEvolutionChats: async () => {
     try {
       const EVOLUTION_URL = import.meta.env.VITE_EVOLUTION_API_URL || 'https://evolution-api-production-22b7.up.railway.app';
       const EVOLUTION_KEY = import.meta.env.VITE_EVOLUTION_API_KEY || '6944500e32d8c3a0b3fc5e9ef8ed7057648e00f30c05a8c4dc065c7a3387b271';
       const INSTANCE_NAME = 'Clinica Sandiego';
+
+      // Load custom contact names saved manually by user
+      let customNames: Record<string, string> = {};
+      try {
+        const savedCustom = localStorage.getItem('sandiego_custom_contact_names');
+        if (savedCustom) customNames = JSON.parse(savedCustom);
+      } catch { /* Error loading custom names */ }
 
       // Fetch contacts map from Evolution API
       let contactsMap: Record<string, string> = {};
@@ -417,6 +442,64 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         }
       } catch { /* Ignore contact fetch error */ }
 
+      // Fetch messages history from Evolution API
+      let recentMessagesMap: Record<string, Message[]> = {};
+      try {
+        const msgsRes = await fetch(`${EVOLUTION_URL}/chat/findMessages/${encodeURIComponent(INSTANCE_NAME)}`, {
+          method: 'POST',
+          headers: { apikey: EVOLUTION_KEY },
+        });
+        if (msgsRes.ok) {
+          const msgsData = await msgsRes.json();
+          const msgsList = Array.isArray(msgsData) ? msgsData : (msgsData?.messages?.records || msgsData?.records || []);
+          if (Array.isArray(msgsList)) {
+            msgsList.forEach((m: any) => {
+              const remoteJid = m.key?.remoteJid || m.remoteJid;
+              if (!remoteJid) return;
+              if (!recentMessagesMap[remoteJid]) recentMessagesMap[remoteJid] = [];
+
+              const fromMe = Boolean(m.key?.fromMe);
+              const msgBody = m.message;
+              let msgText = 'Mensagem';
+              let audioUrl: string | undefined = undefined;
+              let imageUrl: string | undefined = undefined;
+              let mediaType: 'audio' | 'image' | 'text' = 'text';
+
+              if (msgBody) {
+                if (msgBody.audioMessage) {
+                  mediaType = 'audio';
+                  audioUrl = msgBody.audioMessage.url || msgBody.audioMessage.mediaUrl || msgBody.audioMessage.directPath || msgBody.base64;
+                  msgText = '🎤 Mensagem de voz';
+                } else if (msgBody.imageMessage) {
+                  mediaType = 'image';
+                  imageUrl = msgBody.imageMessage.url || msgBody.imageMessage.mediaUrl || msgBody.imageMessage.directPath || msgBody.base64;
+                  msgText = msgBody.imageMessage.caption || '📷 Foto / Imagem';
+                } else {
+                  msgText = msgBody.conversation || msgBody.extendedTextMessage?.text || 'Mensagem';
+                }
+              }
+
+              let tsStr = 'Hoje';
+              if (m.messageTimestamp) {
+                const tsSec = typeof m.messageTimestamp === 'number' ? m.messageTimestamp : m.messageTimestamp.low || Date.now() / 1000;
+                tsStr = new Date(tsSec * 1000).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+              }
+
+              recentMessagesMap[remoteJid].push({
+                id: m.id || m.key?.id || `m-${Date.now()}`,
+                sender: fromMe ? ('agent' as MessageSender) : ('patient' as MessageSender),
+                senderName: fromMe ? 'Recepção' : (contactsMap[remoteJid] || 'Paciente'),
+                text: msgText,
+                timestamp: tsStr,
+                audioUrl,
+                imageUrl,
+                mediaType,
+              });
+            });
+          }
+        }
+      } catch { /* Ignore findMessages fetch error */ }
+
       const res = await fetch(`${EVOLUTION_URL}/chat/findChats/${encodeURIComponent(INSTANCE_NAME)}`, {
         method: 'POST',
         headers: { apikey: EVOLUTION_KEY },
@@ -428,13 +511,13 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
       const currentConversations = get().conversations;
 
-      const syncedConvs: PatientConversation[] = data
+      const syncedConvs: (PatientConversation & { _rawTimestamp?: number })[] = data
         .filter((c: any) => c.remoteJid && !c.remoteJid.includes('@g.us') && !c.remoteJid.includes('@lid'))
         .map((c: any, index: number) => {
           const jid = c.remoteJid || c.id;
           const phoneClean = jid.replace(/\D/g, '');
           const formattedPhone = phoneClean ? `+${phoneClean}` : '';
-          const pushName = contactsMap[jid] || c.pushName || c.name || (phoneClean ? `+${phoneClean}` : `Contato #${index + 1}`);
+          const pushName = customNames[jid] || contactsMap[jid] || c.pushName || c.name || (phoneClean ? `+${phoneClean}` : `Contato #${index + 1}`);
 
           const lastMsgObj = c.lastMessage;
           let msgText = 'Conversa iniciada';
@@ -443,6 +526,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           let audioUrl: string | undefined = undefined;
           let imageUrl: string | undefined = undefined;
           let mediaType: 'audio' | 'image' | 'text' = 'text';
+          let rawTimestamp = 0;
 
           if (lastMsgObj) {
             fromMe = Boolean(lastMsgObj.key?.fromMe);
@@ -462,8 +546,13 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             }
             if (lastMsgObj.messageTimestamp) {
               const tsSec = typeof lastMsgObj.messageTimestamp === 'number' ? lastMsgObj.messageTimestamp : lastMsgObj.messageTimestamp.low || Date.now() / 1000;
+              rawTimestamp = tsSec * 1000;
               timestampStr = new Date(tsSec * 1000).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
             }
+          }
+
+          if (!rawTimestamp && c.updatedAt) {
+            rawTimestamp = new Date(c.updatedAt).getTime();
           }
 
           const existing = currentConversations.find(conv => conv.id === jid || conv.patientPhone?.replace(/\D/g, '') === phoneClean);
@@ -503,6 +592,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             notes: existing?.notes || '',
             lastActivity: timestampStr,
             origin: 'WhatsApp',
+            _rawTimestamp: rawTimestamp,
             messages: updatedMsgs.length > 0 ? updatedMsgs : [
               {
                 id: `init-${Date.now()}`,
@@ -517,6 +607,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             ],
           };
         });
+
+      // Sort by newest timestamp first (chronological order)
+      syncedConvs.sort((a, b) => (b._rawTimestamp || 0) - (a._rawTimestamp || 0));
 
       if (syncedConvs.length > 0) {
         const { activeConversationId } = get();

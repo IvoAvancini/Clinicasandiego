@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { useChatStore } from '../store/useChatStore';
 import {
   Send,
@@ -6,24 +6,96 @@ import {
   ArrowLeft,
   Info,
   MessageSquare,
+  Pencil,
+  Check,
+  Play,
+  Pause,
+  Mic,
+  Camera,
 } from 'lucide-react';
+import { toast } from 'sonner';
 
-const FULL_CANNED_RESPONSES = [
-  { shortcut: '/saudacao', label: 'Saudação Oficial', template: 'Olá, {primeiro_nome}! A Clínica Sandiego — Clínica Médica e Vacinas está à disposição. Como podemos te ajudar hoje?' },
-  { shortcut: '/agendamento', label: 'Informar Agendamento', template: 'Sua consulta de {especialidade} com {medico} está agendada para {data_amigavel} às {horario} na Clínica Sandiego.' },
-  { shortcut: '/vacinas', label: 'Tabela de Vacinas', template: 'Contamos com vacinação completa: Febre Amarela, Gripe Quadrivalente, Tríplice Viral, HPV e Pneumocócica.' },
-  { shortcut: '/convenios', label: 'Lista de Convênios', template: 'Convênios Aceitos: Unimed, Bradesco Saúde, SulAmérica, Amil, Porto Seguro e Atendimento Particular.' },
-  { shortcut: '/endereco', label: 'Endereço e Estacionamento', template: 'Sandiego — Clínica Médica e Vacinas: Rua Tomé de Souza, nº 08, Centro.' },
-  { shortcut: '/horarios', label: 'Horário de Funcionamento', template: 'Horário de Atendimento: Segunda a Sexta das 08:00 às 18:00 e Sábados das 08:00 às 12:00.' },
-  { shortcut: '/documentos', label: 'Documentos Necessários', template: 'Documentos necessários: Documento oficial com foto (RG ou CNH) e a carteira física ou digital do seu convênio.' },
-  { shortcut: '/preparo', label: 'Instruções de Preparo', template: 'Orientação de Preparo: Coletas de sangue exigem jejum de 8h a 12h. Exames de imagem exigem bexiga cheia.' },
-  { shortcut: '/confirmacao', label: 'Confirmação Realizada', template: 'Consulta confirmada com sucesso! A Clínica Sandiego aguarda você amanhã às {horario} para sua consulta com {medico}.' },
-  { shortcut: '/reagendamento', label: 'Opções de Reagendamento', template: 'Entendido, {primeiro_nome}. Registramos que você precisa remarcar sua consulta com {medico}. Quais dias ficam melhores para você?' },
-  { shortcut: '/cancelamento', label: 'Política de Cancelamento', template: 'Sua solicitação de cancelamento foi recebida com sucesso.' },
-  { shortcut: '/aguarde', label: 'Aguarde Atendimento', template: 'Um momento que nossa recepção já vai dar continuidade ao seu atendimento!' },
-  { shortcut: '/fora-expediente', label: 'Fora do Expediente', template: 'Nosso expediente está encerrado no momento. Responderemos assim que a clínica abrir!' },
-  { shortcut: '/finalizacao', label: 'Finalização de Atendimento', template: 'A Clínica Sandiego agradece seu contato! Tenha um excelente dia.' },
-];
+function VoiceNotePlayer({ audioUrl, isOutgoing }: { audioUrl?: string; isOutgoing: boolean }) {
+  const [isPlaying, setIsPlaying] = useState(false);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+
+  const togglePlay = () => {
+    if (audioRef.current && audioUrl) {
+      if (isPlaying) {
+        audioRef.current.pause();
+        setIsPlaying(false);
+      } else {
+        audioRef.current.play().then(() => setIsPlaying(true)).catch(() => {
+          setIsPlaying(!isPlaying);
+        });
+      }
+    } else {
+      setIsPlaying(!isPlaying);
+    }
+  };
+
+  return (
+    <div className="flex items-center gap-3 py-1.5 px-1 select-none min-w-[210px]">
+      {audioUrl && <audio ref={audioRef} src={audioUrl} onEnded={() => setIsPlaying(false)} className="hidden" />}
+      
+      <button
+        type="button"
+        onClick={togglePlay}
+        className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 shadow-xs transition cursor-pointer active:scale-95 ${
+          isOutgoing ? 'bg-emerald-700 text-white hover:bg-emerald-800' : 'bg-emerald-600 text-white hover:bg-emerald-700'
+        }`}
+      >
+        {isPlaying ? <Pause className="h-4 w-4 fill-white" /> : <Play className="h-4 w-4 fill-white ml-0.5" />}
+      </button>
+
+      <div className="flex-1 flex flex-col justify-center gap-1">
+        <div className="flex items-center gap-0.5 h-4">
+          {[40, 70, 30, 90, 60, 100, 45, 80, 50, 85, 35, 75, 55, 95, 65, 40].map((h, i) => (
+            <div
+              key={i}
+              className={`w-0.5 rounded-full transition-all duration-300 ${
+                isPlaying ? 'bg-emerald-600 animate-pulse' : 'bg-slate-400/70'
+              }`}
+              style={{ height: isPlaying ? `${Math.max(25, (h * Math.random()) + 15)}%` : `${h * 0.35}%` }}
+            />
+          ))}
+        </div>
+
+        <div className="flex items-center justify-between text-[10px] font-bold text-slate-500">
+          <span className="flex items-center gap-1 text-emerald-800">
+            <Mic className="h-3 w-3 text-emerald-600" /> Mensagem de voz
+          </span>
+          <span>0:15</span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PhotoCard({ imageUrl, caption, isOutgoing }: { imageUrl?: string; caption?: string; isOutgoing: boolean }) {
+  return (
+    <div className="flex flex-col gap-1 max-w-[240px]">
+      {imageUrl && (imageUrl.startsWith('data:') || imageUrl.startsWith('http')) ? (
+        <div className="rounded-xl overflow-hidden border border-slate-200 shadow-xs">
+          <img src={imageUrl} alt="Foto enviada" className="w-full max-h-60 object-cover" />
+        </div>
+      ) : (
+        <div className={`p-3 rounded-xl border flex items-center gap-2.5 ${isOutgoing ? 'bg-emerald-100/70 border-emerald-300' : 'bg-slate-100 border-slate-200'}`}>
+          <div className="w-10 h-10 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+            <Camera className="h-5 w-5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <span className="text-xs font-black text-slate-900 block truncate">Foto / Imagem</span>
+            <span className="text-[10px] font-bold text-emerald-800 block">WhatsApp Midia</span>
+          </div>
+        </div>
+      )}
+      {caption && caption !== '📷 Foto / Imagem' && (
+        <p className="text-xs font-medium text-slate-800 px-1">{caption}</p>
+      )}
+    </div>
+  );
+}
 
 export function ChatArea() {
   const {
@@ -31,11 +103,14 @@ export function ChatArea() {
     activeConversationId,
     sendMessage,
     updateStatus,
+    updatePatientName,
     togglePatientDrawer,
     setIsMobileChatOpen,
   } = useChatStore();
 
   const [inputMessage, setInputMessage] = useState('');
+  const [isEditingName, setIsEditingName] = useState(false);
+  const [editedName, setEditedName] = useState('');
 
   const activeConv = conversations.find((c) => c.id === activeConversationId);
 
@@ -51,14 +126,20 @@ export function ChatArea() {
     );
   }
 
+  const handleSaveName = () => {
+    if (editedName.trim()) {
+      updatePatientName(activeConv.id, editedName.trim());
+      toast.success('Nome do contato atualizado!');
+    }
+    setIsEditingName(false);
+  };
+
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
     if (!inputMessage.trim()) return;
     sendMessage(inputMessage);
     setInputMessage('');
   };
-
-
 
   const isResolved = activeConv.conversationStatus === 'finalized';
 
@@ -76,9 +157,42 @@ export function ChatArea() {
               <ArrowLeft className="h-5 w-5" />
             </button>
 
-            <h2 className="text-sm font-black text-slate-900 font-['Plus_Jakarta_Sans'] truncate">
-              {activeConv.patientName}
-            </h2>
+            {isEditingName ? (
+              <div className="flex items-center gap-1">
+                <input
+                  type="text"
+                  value={editedName}
+                  onChange={(e) => setEditedName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleSaveName(); }}
+                  autoFocus
+                  className="text-xs font-bold text-slate-900 px-2.5 py-1 border border-purple-400 rounded-lg outline-none bg-purple-50/50"
+                  placeholder="Nome do contato..."
+                />
+                <button
+                  type="button"
+                  onClick={handleSaveName}
+                  className="p-1 rounded-lg bg-emerald-600 text-white hover:bg-emerald-700 transition cursor-pointer"
+                  title="Salvar nome"
+                >
+                  <Check className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-1.5 truncate">
+                <h2 className="text-sm font-black text-slate-900 font-['Plus_Jakarta_Sans'] truncate">
+                  {activeConv.patientName}
+                </h2>
+                <button
+                  type="button"
+                  onClick={() => { setEditedName(activeConv.patientName); setIsEditingName(true); }}
+                  className="p-1 rounded-lg hover:bg-slate-100 text-slate-400 hover:text-purple-600 transition cursor-pointer"
+                  title="Editar nome do contato"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                </button>
+              </div>
+            )}
+
             <span className="text-slate-300 font-bold">·</span>
             <span
               className={`text-[11px] font-bold px-2 py-0.5 rounded border shrink-0 ${
@@ -149,6 +263,8 @@ export function ChatArea() {
           }
 
           const isOutgoing = isBot || isAgent;
+          const isAudio = msg.mediaType === 'audio' || msg.text.includes('Mensagem de voz') || msg.text.includes('🎤');
+          const isImage = msg.mediaType === 'image' || msg.text.includes('Foto') || msg.text.includes('📷');
 
           return (
             <div
@@ -162,7 +278,7 @@ export function ChatArea() {
 
               {/* WhatsApp Web Style Bubble */}
               <div
-                className={`max-w-[75%] sm:max-w-[65%] px-4 py-2.5 text-xs leading-relaxed whitespace-pre-wrap shadow-2xs transition-all ${
+                className={`max-w-[85%] sm:max-w-[70%] px-3.5 py-2 text-xs leading-relaxed whitespace-pre-wrap shadow-2xs transition-all ${
                   isOutgoing
                     ? isBot
                       ? 'bg-[#e2f7e0] text-slate-900 rounded-2xl rounded-tr-xs border border-emerald-200/80'
@@ -181,19 +297,10 @@ export function ChatArea() {
                   </div>
                 )}
 
-                {msg.imageUrl && (
-                  <div className="mb-2 rounded-lg overflow-hidden border border-slate-200">
-                    <img src={msg.imageUrl} alt="Imagem / Foto" className="max-h-64 object-cover w-full rounded-lg" />
-                  </div>
-                )}
-
-                {msg.audioUrl ? (
-                  <div className="my-1.5">
-                    <audio controls className="h-8 max-w-[220px]">
-                      <source src={msg.audioUrl} />
-                      Seu navegador não suporta áudio.
-                    </audio>
-                  </div>
+                {isAudio ? (
+                  <VoiceNotePlayer audioUrl={msg.audioUrl} isOutgoing={isOutgoing} />
+                ) : isImage ? (
+                  <PhotoCard imageUrl={msg.imageUrl} caption={msg.text} isOutgoing={isOutgoing} />
                 ) : (
                   msg.text
                 )}
