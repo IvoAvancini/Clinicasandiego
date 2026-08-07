@@ -74,185 +74,25 @@ interface ChatStore {
   triggerBatchConfirmations: () => void;
 }
 
-const INITIAL_CONVERSATIONS: PatientConversation[] = [
-  {
-    id: 'conv-1',
-    patientName: 'Juliana Paes',
-    patientPhone: '(11) 99887-6655',
-    patientCpf: '341.892.018-44',
-    doctorName: 'Dr. Ricardo Santos',
-    specialty: 'Cardiologia',
-    appointmentDate: new Date().toISOString().slice(0, 10),
-    appointmentTime: '14:30',
-    insurance: 'Unimed',
-    conversationStatus: 'finalized',
-    appointmentStatus: 'confirmed',
-    status: 'confirmed',
-    unreadCount: 0,
-    unread: false,
-    notes: 'Paciente prefere atendimento em sala térrea por ter dificuldade de locomoção.',
-    lastActivity: '14:32',
-    origin: 'Importação Excel',
-    messages: [
-      {
-        id: 'm1',
-        sender: 'system_bot',
-        senderName: 'Sandiego',
-        text: 'Olá, Juliana! A Clínica Sandiego está entrando em contato para confirmar sua consulta com Dr. Ricardo Santos, hoje às 14h30.\n\nResponda:\n1 — Confirmar consulta\n2 — Solicitar reagendamento',
-        timestamp: '14:30',
-      },
-      {
-        id: 'm2',
-        sender: 'patient',
-        text: 'Olá! Sim, vou sim! Já estou a caminho.',
-        timestamp: '14:31',
-        meta: { intentDetected: 'confirmation_yes' },
-      },
-      {
-        id: 'm3',
-        sender: 'system_bot',
-        senderName: 'Sandiego',
-        text: 'Consulta confirmada com sucesso! A Clínica Sandiego aguarda você hoje às 14h30 para sua consulta com Dr. Ricardo Santos.',
-        timestamp: '14:31',
-        meta: { statusChangedTo: 'confirmed' },
-      },
-      {
-        id: 'm4',
-        sender: 'system_event',
-        text: 'Consulta confirmada pelo paciente às 14:31',
-        timestamp: '14:31',
-      },
-    ],
-  },
-  {
-    id: 'conv-2',
-    patientName: 'Camila Pitanga',
-    patientPhone: '(11) 99123-4567',
-    patientCpf: '219.004.881-90',
-    doctorName: 'Dra. Ana Paula',
-    specialty: 'Ginecologia',
-    appointmentDate: new Date().toISOString().slice(0, 10),
-    appointmentTime: '15:15',
-    insurance: 'Bradesco Saúde',
-    conversationStatus: 'awaiting_clinic',
-    appointmentStatus: 'reschedule_requested',
-    status: 'reschedule_requested',
-    unreadCount: 1,
-    unread: true,
-    notes: 'Solicitou remarcar para semana que vem.',
-    lastActivity: '14:28',
-    origin: 'Importação Excel',
-    messages: [
-      {
-        id: 'm1',
-        sender: 'system_bot',
-        senderName: 'Sandiego',
-        text: 'Olá, Camila! A Clínica Sandiego está entrando em contato para confirmar sua consulta com Dra. Ana Paula, hoje às 15h15.\n\nResponda:\n1 — Confirmar consulta\n2 — Solicitar reagendamento',
-        timestamp: '14:20',
-      },
-      {
-        id: 'm2',
-        sender: 'patient',
-        text: 'Oi, boa tarde. Tive um imprevisto no trabalho e não vou conseguir ir hoje. Preciso remarcar.',
-        timestamp: '14:28',
-        meta: { intentDetected: 'confirmation_no' },
-      },
-      {
-        id: 'm3',
-        sender: 'system_bot',
-        senderName: 'Sandiego',
-        text: 'Entendido, Camila. Registramos que você precisa remarcar sua consulta com Dra. Ana Paula. A equipe da Clínica Sandiego continuará o atendimento para encontrar um novo horário.',
-        timestamp: '14:28',
-        meta: { statusChangedTo: 'reschedule_requested' },
-      },
-      {
-        id: 'm4',
-        sender: 'system_event',
-        text: 'Consulta marcada para reagendamento às 14:28',
-        timestamp: '14:28',
-      },
-    ],
-  },
-  {
-    id: 'conv-3',
-    patientName: 'Marcos Paulo',
-    patientPhone: '(11) 98765-4321',
-    patientCpf: '109.482.771-02',
-    doctorName: 'Setor de Imunização',
-    specialty: 'Vacina Febre Amarela',
-    appointmentDate: new Date().toISOString().slice(0, 10),
-    appointmentTime: '16:00',
-    insurance: 'Particular',
-    conversationStatus: 'awaiting_patient',
-    appointmentStatus: 'awaiting_confirmation',
-    status: 'awaiting_confirmation',
-    unreadCount: 0,
-    unread: false,
-    notes: 'Verificar carteira de vacinação anterior.',
-    lastActivity: '14:00',
-    origin: 'Importação Excel',
-    messages: [
-      {
-        id: 'm1',
-        sender: 'system_bot',
-        senderName: 'Sandiego',
-        text: 'Olá, Marcos! A Clínica Sandiego está entrando em contato para confirmar sua aplicação de Vacina Febre Amarela hoje às 16h00.\n\nResponda:\n1 — Confirmar consulta\n2 — Solicitar reagendamento',
-        timestamp: '14:00',
-      },
-    ],
-  },
-  {
-    id: 'conv-4',
-    patientName: 'Mariana Ximenes',
-    patientPhone: '(11) 97654-3210',
-    patientCpf: '401.882.109-11',
-    doctorName: 'Dra. Patricia Lima',
-    specialty: 'Dermatologia',
-    appointmentDate: new Date().toISOString().slice(0, 10),
-    appointmentTime: '16:30',
-    insurance: 'SulAmérica',
-    conversationStatus: 'finalized',
-    appointmentStatus: 'confirmed',
-    status: 'confirmed',
-    unreadCount: 0,
-    unread: false,
-    lastActivity: '13:50',
-    origin: 'Importação Excel',
-    messages: [
-      {
-        id: 'm1',
-        sender: 'system_bot',
-        senderName: 'Sandiego',
-        text: 'Olá, Mariana! A Clínica Sandiego está entrando em contato para confirmar sua consulta com Dra. Patricia Lima hoje às 16h30.',
-        timestamp: '13:45',
-      },
-      {
-        id: 'm2',
-        sender: 'patient',
-        text: 'Com certeza! Tudo certo.',
-        timestamp: '13:50',
-      },
-      {
-        id: 'm3',
-        sender: 'system_bot',
-        senderName: 'Sandiego',
-        text: 'Consulta confirmada com sucesso! A Clínica Sandiego aguarda você hoje às 16h30 para sua consulta com Dra. Patricia Lima.',
-        timestamp: '13:50',
-      },
-    ],
-  },
-];
+const INITIAL_CONVERSATIONS: PatientConversation[] = [];
 
 export const useChatStore = create<ChatStore>((set, get) => ({
   conversations: (() => {
     const saved = localStorage.getItem('sandiego_chatwoot_conversations_v9');
     if (saved) {
-      try { return JSON.parse(saved); } catch { return INITIAL_CONVERSATIONS; }
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.some(c => c.id === 'conv-1' || c.patientName === 'Juliana Paes')) {
+          localStorage.removeItem('sandiego_chatwoot_conversations_v9');
+          return [];
+        }
+        return parsed;
+      } catch { return []; }
     }
-    return INITIAL_CONVERSATIONS;
+    return [];
   })(),
-  activeConversationId: 'conv-2',
-  activeFilterTab: 'awaiting_clinic',
+  activeConversationId: null,
+  activeFilterTab: 'all',
   searchQuery: '',
   isBatchModalOpen: false,
   isSidebarCollapsed: false,
@@ -399,6 +239,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     const { activeConversationId, conversations } = get();
     if (!activeConversationId || !text.trim()) return;
 
+    const targetConv = conversations.find((c) => c.id === activeConversationId);
+
     const newMsg: Message = {
       id: 'msg-' + Date.now(),
       sender: 'agent',
@@ -421,6 +263,27 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
     localStorage.setItem('sandiego_chatwoot_conversations_v9', JSON.stringify(updated));
     set({ conversations: updated });
+
+    if (targetConv) {
+      const EVOLUTION_URL = import.meta.env.VITE_EVOLUTION_API_URL || 'https://evolution-api-production-22b7.up.railway.app';
+      const EVOLUTION_KEY = import.meta.env.VITE_EVOLUTION_API_KEY || '6944500e32d8c3a0b3fc5e9ef8ed7057648e00f30c05a8c4dc065c7a3387b271';
+      const INSTANCE_NAME = 'Clinica Sandiego';
+      const rawNumber = targetConv.patientPhone || targetConv.id;
+      const cleanNumber = rawNumber.replace(/\D/g, '');
+      if (cleanNumber) {
+        fetch(`${EVOLUTION_URL}/message/sendText/${encodeURIComponent(INSTANCE_NAME)}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'apikey': EVOLUTION_KEY,
+          },
+          body: JSON.stringify({
+            number: cleanNumber,
+            text: text.trim(),
+          }),
+        }).catch((err) => console.error('[Evolution API] Erro ao enviar mensagem WhatsApp:', err));
+      }
+    }
 
     postMessageToBackend(activeConversationId, newMsg);
     updateConversationStatusInBackend(activeConversationId, { conversationStatus: 'awaiting_patient' });
