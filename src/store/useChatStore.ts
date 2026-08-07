@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { PatientConversation, InboxFilterTab, Message, ConfirmationStatus, AppointmentStatus, ConversationStatus, AutomationSettings, CannedResponse } from '../types/chatwoot';
+import { PatientConversation, InboxFilterTab, Message, MessageSender, ConfirmationStatus, AppointmentStatus, ConversationStatus, AutomationSettings, CannedResponse } from '../types/chatwoot';
 import { processDeterministicReply, DEFAULT_AUTOMATION_SETTINGS } from '../lib/zeroTokenEngine';
 import { postMessageToBackend, updateConversationStatusInBackend } from '../lib/apiClient';
 
@@ -72,6 +72,7 @@ interface ChatStore {
   updateStatus: (conversationId: string, status: ConfirmationStatus) => void;
   updateNotes: (conversationId: string, notes: string) => void;
   triggerBatchConfirmations: () => void;
+  syncEvolutionChats: () => Promise<void>;
 }
 
 const INITIAL_CONVERSATIONS: PatientConversation[] = [];
@@ -388,6 +389,106 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     );
     localStorage.setItem('sandiego_chatwoot_conversations_v9', JSON.stringify(updated));
     set({ conversations: updated });
+  },
+
+  syncEvolutionChats: async () => {
+    try {
+      const EVOLUTION_URL = import.meta.env.VITE_EVOLUTION_API_URL || 'https://evolution-api-production-22b7.up.railway.app';
+      const EVOLUTION_KEY = import.meta.env.VITE_EVOLUTION_API_KEY || '6944500e32d8c3a0b3fc5e9ef8ed7057648e00f30c05a8c4dc065c7a3387b271';
+      const INSTANCE_NAME = 'Clinica Sandiego';
+
+      const res = await fetch(`${EVOLUTION_URL}/chat/findChats/${encodeURIComponent(INSTANCE_NAME)}`, {
+        method: 'POST',
+        headers: { apikey: EVOLUTION_KEY },
+      });
+
+      if (!res.ok) return;
+      const data = await res.json();
+      if (!Array.isArray(data)) return;
+
+      const currentConversations = get().conversations;
+
+      const syncedConvs: PatientConversation[] = data
+        .filter((c: any) => c.remoteJid && !c.remoteJid.includes('@g.us') && !c.remoteJid.includes('@lid'))
+        .map((c: any, index: number) => {
+          const jid = c.remoteJid || c.id;
+          const phoneClean = jid.replace(/\D/g, '');
+          const formattedPhone = phoneClean ? `+${phoneClean}` : '';
+          const pushName = c.pushName || c.name || (phoneClean ? `+${phoneClean}` : `Contato #${index + 1}`);
+
+          const lastMsgObj = c.lastMessage;
+          let msgText = 'Conversa iniciada';
+          let fromMe = false;
+          let timestampStr = 'Hoje';
+
+          if (lastMsgObj) {
+            fromMe = Boolean(lastMsgObj.key?.fromMe);
+            const msgBody = lastMsgObj.message;
+            if (msgBody) {
+              msgText = msgBody.conversation || msgBody.extendedTextMessage?.text || msgBody.imageMessage?.caption || (msgBody.imageMessage ? '📷 Imagem' : msgBody.audioMessage ? '🎤 Áudio' : 'Mensagem');
+            }
+            if (lastMsgObj.messageTimestamp) {
+              const tsSec = typeof lastMsgObj.messageTimestamp === 'number' ? lastMsgObj.messageTimestamp : lastMsgObj.messageTimestamp.low || Date.now() / 1000;
+              timestampStr = new Date(tsSec * 1000).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+            }
+          }
+
+          const existing = currentConversations.find(conv => conv.id === jid || conv.patientPhone?.replace(/\D/g, '') === phoneClean);
+          const existingMsgs = existing?.messages || [];
+          const lastMsgId = lastMsgObj?.id || `msg-${Date.now()}`;
+          const hasLastMsg = existingMsgs.some(m => m.id === lastMsgId || m.text === msgText);
+
+          const updatedMsgs: Message[] = hasLastMsg ? existingMsgs : [
+            ...existingMsgs,
+            {
+              id: lastMsgId,
+              sender: fromMe ? ('agent' as MessageSender) : ('patient' as MessageSender),
+              senderName: fromMe ? 'Recepção' : pushName,
+              text: msgText,
+              timestamp: timestampStr,
+            }
+          ];
+
+          return {
+            id: jid,
+            patientName: pushName,
+            patientPhone: formattedPhone,
+            patientCpf: existing?.patientCpf || '',
+            doctorName: existing?.doctorName || 'Atendimento Sandiego',
+            specialty: existing?.specialty || 'Recepção',
+            appointmentDate: existing?.appointmentDate || new Date().toISOString().slice(0, 10),
+            appointmentTime: timestampStr,
+            insurance: existing?.insurance || 'Particular',
+            conversationStatus: c.unreadCount > 0 ? 'awaiting_clinic' : (existing?.conversationStatus || 'awaiting_patient'),
+            appointmentStatus: existing?.appointmentStatus || 'awaiting_confirmation',
+            status: existing?.status || 'awaiting_confirmation',
+            unreadCount: c.unreadCount || 0,
+            unread: Boolean(c.unreadCount),
+            notes: existing?.notes || '',
+            lastActivity: timestampStr,
+            origin: 'WhatsApp',
+            messages: updatedMsgs.length > 0 ? updatedMsgs : [
+              {
+                id: `init-${Date.now()}`,
+                sender: fromMe ? ('agent' as MessageSender) : ('patient' as MessageSender),
+                senderName: fromMe ? 'Recepção' : pushName,
+                text: msgText,
+                timestamp: timestampStr,
+              }
+            ],
+          };
+        });
+
+      if (syncedConvs.length > 0) {
+        const { activeConversationId } = get();
+        set({
+          conversations: syncedConvs,
+          activeConversationId: activeConversationId && syncedConvs.some(c => c.id === activeConversationId) ? activeConversationId : syncedConvs[0].id
+        });
+      }
+    } catch (err) {
+      console.error('[Evolution API] Erro ao sincronizar chats:', err);
+    }
   },
 
   triggerBatchConfirmations: () => {

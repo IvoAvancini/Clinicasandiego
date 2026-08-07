@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useChatStore } from '../store/useChatStore';
 import { InboxFilterTab, PatientConversation } from '../types/chatwoot';
 import { Search, CheckCircle2, RefreshCw, Inbox } from 'lucide-react';
@@ -13,7 +13,14 @@ export function SidebarConversations() {
     setActiveConversationId,
     setActiveFilterTab,
     setSearchQuery,
+    syncEvolutionChats,
   } = useChatStore();
+
+  useEffect(() => {
+    syncEvolutionChats();
+    const interval = setInterval(() => syncEvolutionChats(), 4000);
+    return () => clearInterval(interval);
+  }, [syncEvolutionChats]);
 
   const totalAll = conversations.length;
   const totalAwaitingClinic = conversations.filter((c) => c.conversationStatus === 'awaiting_clinic').length;

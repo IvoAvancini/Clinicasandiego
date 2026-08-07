@@ -9,8 +9,15 @@ const EVOLUTION_URL = import.meta.env.VITE_EVOLUTION_API_URL || 'https://evoluti
 const EVOLUTION_KEY = import.meta.env.VITE_EVOLUTION_API_KEY || '6944500e32d8c3a0b3fc5e9ef8ed7057648e00f30c05a8c4dc065c7a3387b271';
 const INSTANCE_NAME = 'Clinica Sandiego';
 
+let cachedConnStatus: WhatsAppConnStatus = 'loading';
+
 export function WhatsAppConnectionCard() {
-  const [status, setStatus] = useState<WhatsAppConnStatus>('loading');
+  const [status, setStatusState] = useState<WhatsAppConnStatus>(cachedConnStatus);
+
+  const setStatus = useCallback((s: WhatsAppConnStatus) => {
+    cachedConnStatus = s;
+    setStatusState(s);
+  }, []);
   const [connectedNumber, setConnectedNumber] = useState<string | null>(null);
   const [qrCode, setQrCode] = useState<string | null>(null);
   const [showModal, setShowModal] = useState<boolean>(false);
