@@ -52,14 +52,17 @@ export function WhatsAppConnectionCard() {
       if (res.ok) {
         const data = await res.json();
         const state = data.instance?.state || data.state;
-        const mappedStatus: WhatsAppConnStatus = state === 'open' ? 'connected' : state === 'connecting' ? 'connecting' : 'disconnected';
+        const mappedStatus: WhatsAppConnStatus = (state === 'open' || state === 'connected') ? 'connected' : state === 'connecting' ? 'connecting' : 'disconnected';
         setStatus(mappedStatus);
+        if (mappedStatus === 'connected') localStorage.setItem('sandiego_wa_connected', 'true');
         return mappedStatus;
       }
     } catch { /* Network error */ }
 
-    setStatus('disconnected');
-    return 'disconnected' as WhatsAppConnStatus;
+    const isLocallyConnected = localStorage.getItem('sandiego_wa_connected') === 'true';
+    const fallbackStatus = isLocallyConnected ? 'connected' : 'disconnected';
+    setStatus(fallbackStatus);
+    return fallbackStatus as WhatsAppConnStatus;
   }, []);
 
   useEffect(() => {

@@ -459,11 +459,21 @@ export const useChatStore = create<ChatStore>((set, get) => ({
               if (!recentMessagesMap[remoteJid]) recentMessagesMap[remoteJid] = [];
 
               const fromMe = Boolean(m.key?.fromMe);
-              const msgBody = m.message;
+              let msgBody = m.message;
+              if (msgBody) {
+                const wrappers = ['ephemeralMessage', 'viewOnceMessage', 'viewOnceMessageV2', 'documentWithCaptionMessage', 'templateMessage'];
+                for (const w of wrappers) {
+                  if (msgBody[w]) msgBody = msgBody[w].message || msgBody[w];
+                }
+              }
+
               let msgText = 'Mensagem';
               let audioUrl: string | undefined = undefined;
               let imageUrl: string | undefined = undefined;
-              let mediaType: 'audio' | 'image' | 'text' = 'text';
+              let videoUrl: string | undefined = undefined;
+              let documentUrl: string | undefined = undefined;
+              let fileName: string | undefined = undefined;
+              let mediaType: 'audio' | 'image' | 'video' | 'document' | 'text' = 'text';
 
               if (msgBody) {
                 if (msgBody.audioMessage) {
@@ -474,6 +484,15 @@ export const useChatStore = create<ChatStore>((set, get) => ({
                   mediaType = 'image';
                   imageUrl = msgBody.imageMessage.url || msgBody.imageMessage.mediaUrl || msgBody.imageMessage.directPath || msgBody.base64;
                   msgText = msgBody.imageMessage.caption || '📷 Foto / Imagem';
+                } else if (msgBody.videoMessage) {
+                  mediaType = 'video';
+                  videoUrl = msgBody.videoMessage.url || msgBody.videoMessage.mediaUrl || msgBody.videoMessage.directPath || msgBody.base64;
+                  msgText = msgBody.videoMessage.caption || '🎥 Vídeo';
+                } else if (msgBody.documentMessage) {
+                  mediaType = 'document';
+                  documentUrl = msgBody.documentMessage.url || msgBody.documentMessage.mediaUrl || msgBody.documentMessage.directPath || msgBody.base64;
+                  fileName = msgBody.documentMessage.fileName || msgBody.documentMessage.title || 'documento.pdf';
+                  msgText = msgBody.documentMessage.caption || `📄 ${fileName}`;
                 } else {
                   msgText = msgBody.conversation || msgBody.extendedTextMessage?.text || 'Mensagem';
                 }
@@ -493,6 +512,9 @@ export const useChatStore = create<ChatStore>((set, get) => ({
                 timestamp: tsStr,
                 audioUrl,
                 imageUrl,
+                videoUrl,
+                documentUrl,
+                fileName,
                 mediaType,
               });
             });
@@ -525,13 +547,17 @@ export const useChatStore = create<ChatStore>((set, get) => ({
           let timestampStr = 'Hoje';
           let audioUrl: string | undefined = undefined;
           let imageUrl: string | undefined = undefined;
-          let mediaType: 'audio' | 'image' | 'text' = 'text';
+          let mediaType: 'audio' | 'image' | 'video' | 'document' | 'text' = 'text';
           let rawTimestamp = 0;
 
           if (lastMsgObj) {
             fromMe = Boolean(lastMsgObj.key?.fromMe);
-            const msgBody = lastMsgObj.message;
+            let msgBody = lastMsgObj.message;
             if (msgBody) {
+              const wrappers = ['ephemeralMessage', 'viewOnceMessage', 'viewOnceMessageV2', 'documentWithCaptionMessage', 'templateMessage'];
+              for (const w of wrappers) {
+                if (msgBody[w]) msgBody = msgBody[w].message || msgBody[w];
+              }
               if (msgBody.audioMessage) {
                 mediaType = 'audio';
                 audioUrl = msgBody.audioMessage.url || msgBody.audioMessage.mediaUrl || msgBody.audioMessage.directPath || msgBody.base64;
@@ -557,12 +583,18 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
           const existing = currentConversations.find(conv => conv.id === jid || conv.patientPhone?.replace(/\D/g, '') === phoneClean);
           const existingMsgs = existing?.messages || [];
-          const lastMsgId = lastMsgObj?.id || `msg-${Date.now()}`;
-          const hasLastMsg = existingMsgs.some(m => m.id === lastMsgId || m.text === msgText);
+          const fetchedMsgs = recentMessagesMap[jid] || [];
 
-          const updatedMsgs: Message[] = hasLastMsg ? existingMsgs : [
-            ...existingMsgs,
-            {
+          const mergedMsgs = [...existingMsgs];
+          fetchedMsgs.forEach(fm => {
+            if (!mergedMsgs.some(cm => cm.id === fm.id)) {
+              mergedMsgs.push(fm);
+            }
+          });
+
+          const lastMsgId = lastMsgObj?.id || `msg-${Date.now()}`;
+          if (lastMsgObj && !mergedMsgs.some(cm => cm.id === lastMsgId)) {
+            mergedMsgs.push({
               id: lastMsgId,
               sender: fromMe ? ('agent' as MessageSender) : ('patient' as MessageSender),
               senderName: fromMe ? 'Recepção' : pushName,
@@ -571,8 +603,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
               audioUrl,
               imageUrl,
               mediaType,
-            }
-          ];
+            });
+          }
 
           return {
             id: jid,
@@ -593,7 +625,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
             lastActivity: timestampStr,
             origin: 'WhatsApp',
             _rawTimestamp: rawTimestamp,
-            messages: updatedMsgs.length > 0 ? updatedMsgs : [
+            messages: mergedMsgs.length > 0 ? mergedMsgs : [
               {
                 id: `init-${Date.now()}`,
                 sender: fromMe ? ('agent' as MessageSender) : ('patient' as MessageSender),
