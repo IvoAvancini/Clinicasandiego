@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 
 export type WhatsAppConnStatus = 'connected' | 'connecting' | 'disconnected' | 'error' | 'loading';
 
-const API_BASE = 'http://localhost:8001';
+const API_BASE = import.meta.env.VITE_EVOLUTION_API_URL || import.meta.env.VITE_API_URL || 'http://localhost:8001';
 
 export function WhatsAppConnectionCard() {
   const [status, setStatus] = useState<WhatsAppConnStatus>('loading');
