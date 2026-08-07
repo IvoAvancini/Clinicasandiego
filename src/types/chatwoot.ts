@@ -42,7 +42,14 @@ export interface Message {
   timestamp: string;
   audioUrl?: string;
   imageUrl?: string;
-  mediaType?: 'audio' | 'image' | 'text';
+  videoUrl?: string;
+  documentUrl?: string;
+  fileName?: string;
+  fileSize?: string;
+  mediaType?: 'audio' | 'image' | 'video' | 'document' | 'sticker' | 'text';
+  mediaStatus?: 'loaded' | 'processing' | 'processing_error' | 'none';
+  transcription?: string;
+  transcriptionStatus?: 'completed' | 'processing' | 'error' | 'none';
   meta?: {
     intentDetected?: 'confirmation_yes' | 'confirmation_no' | 'cancellation' | 'faq' | 'unrecognized';
     statusChangedTo?: AppointmentStatus;

@@ -1,5 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { useChatStore } from '../store/useChatStore';
+import { Message } from '../types/chatwoot';
 import {
   Send,
   User,
@@ -12,15 +13,23 @@ import {
   Pause,
   Mic,
   Camera,
+  Video,
+  FileText,
+  Download,
+  AlertCircle,
+  RefreshCw,
+  Maximize2,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-function VoiceNotePlayer({ audioUrl, isOutgoing }: { audioUrl?: string; isOutgoing: boolean }) {
+function WhatsAppAudioMessage({ msg, isOutgoing }: { msg: Message; isOutgoing: boolean }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
 
+  const mediaSrc = msg.audioUrl || (msg.id ? `/api/whatsapp/media/${msg.id}` : undefined);
+
   const togglePlay = () => {
-    if (audioRef.current && audioUrl) {
+    if (audioRef.current && mediaSrc) {
       if (isPlaying) {
         audioRef.current.pause();
         setIsPlaying(false);
@@ -35,49 +44,71 @@ function VoiceNotePlayer({ audioUrl, isOutgoing }: { audioUrl?: string; isOutgoi
   };
 
   return (
-    <div className="flex items-center gap-3 py-1.5 px-1 select-none min-w-[210px]">
-      {audioUrl && <audio ref={audioRef} src={audioUrl} onEnded={() => setIsPlaying(false)} className="hidden" />}
-      
-      <button
-        type="button"
-        onClick={togglePlay}
-        className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 shadow-xs transition cursor-pointer active:scale-95 ${
-          isOutgoing ? 'bg-emerald-700 text-white hover:bg-emerald-800' : 'bg-emerald-600 text-white hover:bg-emerald-700'
-        }`}
-      >
-        {isPlaying ? <Pause className="h-4 w-4 fill-white" /> : <Play className="h-4 w-4 fill-white ml-0.5" />}
-      </button>
+    <div className="flex flex-col gap-2 select-none min-w-[220px]">
+      <div className="flex items-center gap-3 py-1 px-1">
+        {mediaSrc && <audio ref={audioRef} src={mediaSrc} onEnded={() => setIsPlaying(false)} className="hidden" />}
+        
+        <button
+          type="button"
+          onClick={togglePlay}
+          className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 shadow-xs transition cursor-pointer active:scale-95 ${
+            isOutgoing ? 'bg-emerald-700 text-white hover:bg-emerald-800' : 'bg-emerald-600 text-white hover:bg-emerald-700'
+          }`}
+        >
+          {isPlaying ? <Pause className="h-4 w-4 fill-white" /> : <Play className="h-4 w-4 fill-white ml-0.5" />}
+        </button>
 
-      <div className="flex-1 flex flex-col justify-center gap-1">
-        <div className="flex items-center gap-0.5 h-4">
-          {[40, 70, 30, 90, 60, 100, 45, 80, 50, 85, 35, 75, 55, 95, 65, 40].map((h, i) => (
-            <div
-              key={i}
-              className={`w-0.5 rounded-full transition-all duration-300 ${
-                isPlaying ? 'bg-emerald-600 animate-pulse' : 'bg-slate-400/70'
-              }`}
-              style={{ height: isPlaying ? `${Math.max(25, (h * Math.random()) + 15)}%` : `${h * 0.35}%` }}
-            />
-          ))}
-        </div>
+        <div className="flex-1 flex flex-col justify-center gap-1">
+          <div className="flex items-center gap-0.5 h-4">
+            {[40, 70, 30, 90, 60, 100, 45, 80, 50, 85, 35, 75, 55, 95, 65, 40].map((h, i) => (
+              <div
+                key={i}
+                className={`w-0.5 rounded-full transition-all duration-300 ${
+                  isPlaying ? 'bg-emerald-600 animate-pulse' : 'bg-slate-400/70'
+                }`}
+                style={{ height: isPlaying ? `${Math.max(25, (h * Math.random()) + 15)}%` : `${h * 0.35}%` }}
+              />
+            ))}
+          </div>
 
-        <div className="flex items-center justify-between text-[10px] font-bold text-slate-500">
-          <span className="flex items-center gap-1 text-emerald-800">
-            <Mic className="h-3 w-3 text-emerald-600" /> Mensagem de voz
-          </span>
-          <span>0:15</span>
+          <div className="flex items-center justify-between text-[10px] font-bold text-slate-500">
+            <span className="flex items-center gap-1 text-emerald-800">
+              <Mic className="h-3 w-3 text-emerald-600" /> Mensagem de voz
+            </span>
+            <span>0:15</span>
+          </div>
         </div>
       </div>
+
+      {msg.transcription ? (
+        <div className="bg-white/80 p-2 rounded-xl border border-emerald-200/80 text-[11px] text-slate-800">
+          <strong className="text-emerald-900 block font-bold text-[10px] mb-0.5">Transcrição por IA:</strong>
+          <span>"{msg.transcription}"</span>
+        </div>
+      ) : msg.transcriptionStatus === 'processing' ? (
+        <div className="text-[10px] italic text-slate-500 px-1">
+          Transcrevendo áudio...
+        </div>
+      ) : null}
     </div>
   );
 }
 
-function PhotoCard({ imageUrl, caption, isOutgoing }: { imageUrl?: string; caption?: string; isOutgoing: boolean }) {
+function WhatsAppImageMessage({ msg, isOutgoing }: { msg: Message; isOutgoing: boolean }) {
+  const [isZoomed, setIsZoomed] = useState(false);
+  const mediaSrc = msg.imageUrl || (msg.id ? `/api/whatsapp/media/${msg.id}` : undefined);
+
   return (
-    <div className="flex flex-col gap-1 max-w-[240px]">
-      {imageUrl && (imageUrl.startsWith('data:') || imageUrl.startsWith('http')) ? (
-        <div className="rounded-xl overflow-hidden border border-slate-200 shadow-xs">
-          <img src={imageUrl} alt="Foto enviada" className="w-full max-h-60 object-cover" />
+    <div className="flex flex-col gap-1.5 max-w-[260px]">
+      {mediaSrc ? (
+        <div 
+          onClick={() => setIsZoomed(true)} 
+          className="rounded-xl overflow-hidden border border-slate-200 shadow-xs cursor-pointer hover:opacity-95 transition relative group"
+        >
+          <img src={mediaSrc} alt="Foto enviada" className="w-full max-h-64 object-cover" />
+          <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition flex items-center justify-center text-white text-xs font-bold gap-1">
+            <Maximize2 className="h-4 w-4" /> Ampliar
+          </div>
         </div>
       ) : (
         <div className={`p-3 rounded-xl border flex items-center gap-2.5 ${isOutgoing ? 'bg-emerald-100/70 border-emerald-300' : 'bg-slate-100 border-slate-200'}`}>
@@ -86,13 +117,93 @@ function PhotoCard({ imageUrl, caption, isOutgoing }: { imageUrl?: string; capti
           </div>
           <div className="flex-1 min-w-0">
             <span className="text-xs font-black text-slate-900 block truncate">Foto / Imagem</span>
-            <span className="text-[10px] font-bold text-emerald-800 block">WhatsApp Midia</span>
+            <span className="text-[10px] font-bold text-emerald-800 block">WhatsApp Mídia</span>
           </div>
         </div>
       )}
-      {caption && caption !== '📷 Foto / Imagem' && (
-        <p className="text-xs font-medium text-slate-800 px-1">{caption}</p>
+
+      {msg.text && msg.text !== '📷 Foto / Imagem' && (
+        <p className="text-xs font-medium text-slate-800 px-1">{msg.text}</p>
       )}
+
+      {isZoomed && mediaSrc && (
+        <div 
+          onClick={() => setIsZoomed(false)} 
+          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 cursor-pointer"
+        >
+          <div className="relative max-w-4xl max-h-[90vh] overflow-hidden rounded-2xl">
+            <img src={mediaSrc} alt="Foto ampliada" className="max-h-[85vh] object-contain rounded-2xl shadow-2xl" />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function WhatsAppVideoMessage({ msg, isOutgoing }: { msg: Message; isOutgoing: boolean }) {
+  const mediaSrc = msg.videoUrl || (msg.id ? `/api/whatsapp/media/${msg.id}` : undefined);
+
+  return (
+    <div className="flex flex-col gap-1.5 max-w-[280px]">
+      {mediaSrc ? (
+        <video controls src={mediaSrc} className="rounded-xl max-h-64 border border-slate-200 shadow-xs w-full" />
+      ) : (
+        <div className={`p-3 rounded-xl border flex items-center gap-2.5 ${isOutgoing ? 'bg-emerald-100/70 border-emerald-300' : 'bg-slate-100 border-slate-200'}`}>
+          <div className="w-10 h-10 rounded-lg bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+            <Video className="h-5 w-5" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <span className="text-xs font-black text-slate-900 block truncate">Vídeo WhatsApp</span>
+          </div>
+        </div>
+      )}
+      {msg.text && msg.text !== '🎥 Vídeo' && (
+        <p className="text-xs font-medium text-slate-800 px-1">{msg.text}</p>
+      )}
+    </div>
+  );
+}
+
+function WhatsAppDocumentMessage({ msg, isOutgoing }: { msg: Message; isOutgoing: boolean }) {
+  const mediaSrc = msg.documentUrl || (msg.id ? `/api/whatsapp/media/${msg.id}` : '#');
+  const fileName = msg.fileName || 'documento.pdf';
+
+  return (
+    <div className="flex flex-col gap-1.5 max-w-[260px]">
+      <div className={`p-3 rounded-xl border flex items-center gap-3 ${isOutgoing ? 'bg-emerald-100/80 border-emerald-300' : 'bg-slate-100 border-slate-200'}`}>
+        <div className="w-10 h-10 rounded-lg bg-purple-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+          <FileText className="h-5 w-5" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <span className="text-xs font-black text-slate-900 block truncate">{fileName}</span>
+          <a
+            href={mediaSrc}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1 text-[11px] font-bold text-purple-700 hover:underline mt-1"
+          >
+            <Download className="h-3 w-3" /> Abrir / Baixar
+          </a>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MediaFallback({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-xs text-red-800 space-y-1.5 max-w-[250px]">
+      <div className="flex items-center gap-1.5 font-bold">
+        <AlertCircle className="h-4 w-4 text-red-600 shrink-0" />
+        <span>Não foi possível carregar esta mídia.</span>
+      </div>
+      <button
+        type="button"
+        onClick={onRetry}
+        className="px-2.5 py-1 bg-red-600 hover:bg-red-700 text-white text-[10px] font-bold rounded-lg transition flex items-center gap-1 cursor-pointer"
+      >
+        <RefreshCw className="h-3 w-3" /> Tentar novamente
+      </button>
     </div>
   );
 }
@@ -265,6 +376,24 @@ export function ChatArea() {
           const isOutgoing = isBot || isAgent;
           const isAudio = msg.mediaType === 'audio' || msg.text.includes('Mensagem de voz') || msg.text.includes('🎤');
           const isImage = msg.mediaType === 'image' || msg.text.includes('Foto') || msg.text.includes('📷');
+          const isVideo = msg.mediaType === 'video' || msg.text.includes('Vídeo') || msg.text.includes('🎥');
+          const isDocument = msg.mediaType === 'document' || msg.text.includes('documento') || msg.text.includes('📄');
+          const isError = msg.mediaStatus === 'processing_error';
+
+          const handleRetry = async () => {
+            try {
+              toast.info('Tentando carregar mídia novamente...');
+              const res = await fetch(`/api/whatsapp/media/${msg.id}/retry`, { method: 'POST' });
+              if (res.ok) {
+                toast.success('Mídia carregada!');
+                window.location.reload();
+              } else {
+                toast.error('Ainda não foi possível obter a mídia.');
+              }
+            } catch {
+              toast.error('Erro de conexão ao tentar carregar mídia.');
+            }
+          };
 
           return (
             <div
@@ -297,10 +426,16 @@ export function ChatArea() {
                   </div>
                 )}
 
-                {isAudio ? (
-                  <VoiceNotePlayer audioUrl={msg.audioUrl} isOutgoing={isOutgoing} />
+                {isError ? (
+                  <MediaFallback onRetry={handleRetry} />
+                ) : isAudio ? (
+                  <WhatsAppAudioMessage msg={msg} isOutgoing={isOutgoing} />
                 ) : isImage ? (
-                  <PhotoCard imageUrl={msg.imageUrl} caption={msg.text} isOutgoing={isOutgoing} />
+                  <WhatsAppImageMessage msg={msg} isOutgoing={isOutgoing} />
+                ) : isVideo ? (
+                  <WhatsAppVideoMessage msg={msg} isOutgoing={isOutgoing} />
+                ) : isDocument ? (
+                  <WhatsAppDocumentMessage msg={msg} isOutgoing={isOutgoing} />
                 ) : (
                   msg.text
                 )}
